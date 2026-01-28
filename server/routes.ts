@@ -5,6 +5,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { seedDatabase } from "./seed";
+import { sendEmail } from "./email";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -46,12 +47,12 @@ export async function registerRoutes(
       const input = api.bookings.create.input.parse(req.body);
       const booking = await storage.createBooking(input);
       
-      // Send confirmation email (mock for now until integration selected)
+      // Send confirmation email
       const settings = await storage.getSettings();
-      console.log(`[Email Sent to ${booking.customerEmail}]`);
-      console.log(`Subject: ${settings.emailConfirmationSubject}`);
+      const subject = settings.emailConfirmationSubject;
       const body = settings.emailConfirmationBody.replace("{{date}}", booking.scheduledDate.toLocaleDateString());
-      console.log(`Body: ${body}`);
+      
+      await sendEmail(booking.customerEmail, subject, body);
       
       res.status(201).json(booking);
     } catch (err) {
