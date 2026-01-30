@@ -34,7 +34,9 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      // Only mark cookies as secure in production (requires HTTPS).
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       maxAge: sessionTtl,
     },
   });
@@ -61,6 +63,53 @@ async function upsertUser(claims: any) {
 }
 
 export async function setupAuth(app: Express) {
+  // Development-mode: provide a simple mock auth so staff login works locally
+  if (process.env.NODE_ENV === "development") {
+    app.set("trust proxy", 1);
+    app.use(getSession());
+
+    // Attach a lightweight isAuthenticated shim when passport isn't used
+    app.use((req, _res, next) => {
+      if (!(req as any).isAuthenticated) {
+        (req as any).isAuthenticated = function () {
+          const s = (req as any).session;
+          return !!(
+            s && s.user && s.user.expires_at && Math.floor(Date.now() / 1000) <= s.user.expires_at
+          );
+        };
+      }
+
+      if (!(req as any).user && (req as any).session && (req as any).session.user) {
+        (req as any).user = (req as any).session.user;
+      }
+
+      return next();
+    });
+
+    // Dev login route: sets a mock session user and redirects
+    app.get("/api/login", (req, res) => {
+      const user = {
+        claims: { sub: "dev-local", email: "dev@local" },
+        access_token: "dev-access-token",
+        refresh_token: "dev-refresh-token",
+        expires_at: Math.floor(Date.now() / 1000) + 60 * 60, // 1 hour
+      };
+      (req as any).session.user = user;
+      (req as any).user = user;
+      res.redirect("/");
+    });
+
+    // Dev logout route
+    app.get("/api/logout", (req, res) => {
+      if ((req as any).session) {
+        (req as any).session.user = undefined;
+      }
+      res.redirect("/");
+    });
+
+    return;
+  }
+
   app.set("trust proxy", 1);
   app.use(getSession());
   app.use(passport.initialize());

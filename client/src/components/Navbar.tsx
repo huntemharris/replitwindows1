@@ -45,11 +45,14 @@ export function Navbar() {
               </div>
             ) : (
               <div className="flex items-center gap-3">
-                <Link href="/api/login">
-                  <Button variant="ghost" size="sm" className="hidden sm:flex">
-                    Staff Login
-                  </Button>
-                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hidden sm:flex"
+                  onClick={() => (window.location.href = "/api/login")}
+                >
+                  Staff Login
+                </Button>
                 <Link href="/quote">
                   <Button className="shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 transition-all">
                     Book Now
